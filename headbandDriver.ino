@@ -17,8 +17,6 @@ CSE 453, Spring 2014
 #define REQ_DELAY_MS 1
 #define OUT_PINS {0,1,2,3,4}
 #define IN_PINS {7,8,9,10,11}
-// Input Phase is up to 250ms
-#define OUTPUT_PHASE_STEPS 1000
 #define STEP_LENGTH_US 30000
 
 #define TRUE 1
@@ -35,7 +33,7 @@ class DistanceSensorDriver {
    * Gives the current distance reading from the sensor (in cm). Returns -1 if
    * the distance was outside of the expected range.  [0,517] otherwise.
    */
-  int CurrentDistance() {  // TODO: rename to CurrentDistance
+  int CurrentDistance() {
     digitalWrite(trigger_pin, LOW);  // make sure the trigger is low
     delayMicroseconds(2);
     digitalWrite(trigger_pin, HIGH);
@@ -75,7 +73,7 @@ class ActuatorDriver {
 };
 
 class NoiseFilter {
-  // Translate [-1,517] to [0,258] or NO_OBJ_DELAY(=259)
+  // Translate [-1,517] to [0,129] or NO_OBJ_DELAY(=259)
   // dist (cm) -> additionalDelay (ms)
  public:
   int Filter(int dist) {
@@ -122,23 +120,7 @@ class HeadbandController{
       modules[i].Extend(extend);
     }    
   }
-  void InputPhase() {
-    // This takes up to 250 ms
-    for (int i=0; i<N_MODULES; i++) {
-      modules[i].UpdateDistanceDelay();
-    }
-  }
-  void OutputPhase() {
-    // Go through each module, call timestep
-    for (int steps=0; steps<OUTPUT_PHASE_STEPS; steps++) {  // output phase = 1000 steps = 1 second
-      for (int i=0; i<N_MODULES; i++) {
-        // these are instant
-        modules[i].Timestep(); // set each module H or L, update counters
-      }
-      delayMicroseconds(STEP_LENGTH_US); // stay in this pos for 1ms
-    }
-  }
-  
+ 
  public:
   HeadbandController() {}
   HeadbandController(int outputPins[], int inputPins[]) {
