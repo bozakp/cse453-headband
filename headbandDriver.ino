@@ -35,7 +35,7 @@ class DistanceSensorDriver {
    * Gives the current distance reading from the sensor (in cm). Returns -1 if
    * the distance was outside of the expected range.  [0,517] otherwise.
    */
-  int CurrentDistance() {  // TODO: rename to CurrentDistance
+  int CurrentDistance() {
     digitalWrite(trigger_pin, LOW);  // make sure the trigger is low
     delayMicroseconds(2);
     digitalWrite(trigger_pin, HIGH);
