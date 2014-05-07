@@ -12,14 +12,14 @@ CSE 453, Spring 2014
 *********************************************/
 
 #define N_MODULES 5
-#define ACT_ON_TICKS 10
+#define ACT_ON_TICKS 1
 #define NO_OBJ_DELAY 259
-#define REQ_DELAY_MS 10
+#define REQ_DELAY_MS 1
 #define OUT_PINS {0,1,2,3,4}
 #define IN_PINS {7,8,9,10,11}
 // Input Phase is up to 250ms
 #define OUTPUT_PHASE_STEPS 1000
-#define STEP_LENGTH_US 1000
+#define STEP_LENGTH_US 30000
 
 #define TRUE 1
 #define FALSE 0
@@ -41,8 +41,8 @@ class DistanceSensorDriver {
     digitalWrite(trigger_pin, HIGH);
     delayMicroseconds(10);
     digitalWrite(trigger_pin, LOW);
-    unsigned long pulse_micros = pulseIn(echo_pin, HIGH, 30000);  // 30ms: max time to wait for reply
-    int distanceCm = (pulse_micros < 2 || pulse_micros >= 30000) ? -1 : pulse_micros/58;
+    unsigned long pulse_micros = pulseIn(echo_pin, HIGH, STEP_LENGTH_US);  // 30ms: max time to wait for reply
+    int distanceCm = (pulse_micros < 2 || pulse_micros >= STEP_LENGTH_US) ? -1 : pulse_micros/58;
     return distanceCm;
   }
 };
@@ -83,7 +83,7 @@ class NoiseFilter {
       return NO_OBJ_DELAY;
     else
       if (dist < 80)
-        return dist/2;
+        return dist/4;
       return NO_OBJ_DELAY;
   }
 };
@@ -104,15 +104,18 @@ public:
   void Extend(extend) {
     actuator.Extend(extend);
   }
-  void UpdateDistanceDelay() {
+  // Returns the distance
+  int UpdateDistanceDelay() {
     int dist_cm = distance_sensor.CurrentDistance();
     int actuator_delay = noise_filter.Filter(dist_cm);
     actuator.set_additional_delay(actuator_delay);
+    return dist_cm;
   }
 };
 
 class HeadbandController{
   ModuleController modules[N_MODULES];
+  int next_module;
   
   void ExtendAll(int extend) {
     for (int i=0;i<N_MODULES;i++) {
@@ -144,11 +147,17 @@ class HeadbandController{
       pinMode(outputPins[i], OUTPUT);
       modules[i] = ModuleController(outputPins[i], inputPins[i]);
     }
+    next_module = 0;
   }
-  void ProcessCycle() {
-    ExtendAll(FALSE);
-    InputPhase();
-    OutputPhase();
+  void ProcessStep() {
+    int dist = modules[next_module].UpdateDistanceDelay();
+    // sleep for the rest of this time period
+    delayMicroseconds(STEP_LENGTH_US - dist*58);
+    // update all actuators
+    for (int i=0; i<N_MODULES; i++) {
+      modules[i].Timestep();
+    }
+    next_module++;
   }
   void CycleActuators() {
     ExtendAll(FALSE);
@@ -166,7 +175,7 @@ void setup() {
   controller = HeadbandController(outs, ins);
 }
 void loop() {
-  controller.ProcessCycle();
+  controller.ProcessStep();
   //controller.CycleActuators();
 }
 
