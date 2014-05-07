@@ -68,7 +68,6 @@ class ActuatorDriver {
   }
   void set_additional_delay(int del) {
     additional_delay = del;
-    counter = 0;
   }
 };
 
