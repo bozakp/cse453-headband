@@ -17,76 +17,68 @@ CSE 453, Spring 2014
 #define REQ_DELAY_MS 10
 #define OUT_PINS {0,1,2,3,4}
 #define IN_PINS {7,8,9,10,11}
-// Input Phase is about 250ms
+// Input Phase is up to 250ms
 #define OUTPUT_PHASE_STEPS 1000
 #define STEP_LENGTH_US 1000
 
+#define TRUE 1
+#define FALSE 0
+
 class DistanceSensorDriver {
-  int trigPin;
-  int echoPin;
-public:
-  DistanceSensorDriver(int trigPin, int echoPin) :
-  trigPin(trigPin), echoPin(echoPin) {
-  }
+  int trigger_pin;
+  int echo_pin;
+ public:
+  DistanceSensorDriver(int trigger_pin, int echo_pin) :
+    trigger_pin(trigger_pin), echo_pin(echo_pin) {}
 
   /**
    * Gives the current distance reading from the sensor (in cm). Returns -1 if
    * the distance was outside of the expected range.  [0,517] otherwise.
    */
-  int getCurrentDistance() {
-    digitalWrite(trigPin, LOW);  // make sure the trigger is low
+  int CurrentDistance() {  // TODO: rename to CurrentDistance
+    digitalWrite(trigger_pin, LOW);  // make sure the trigger is low
     delayMicroseconds(2);
-    digitalWrite(trigPin, HIGH);
+    digitalWrite(trigger_pin, HIGH);
     delayMicroseconds(10);
-    digitalWrite(trigPin, LOW);
-    unsigned long pulseMicros = pulseIn(echoPin, HIGH, 30000);  // 30ms: max time to wait for reply
-    int distanceCm = (pulseMicros < 2 || pulseMicros >= 30000) ? -1 : pulseMicros/58;
+    digitalWrite(trigger_pin, LOW);
+    unsigned long pulse_micros = pulseIn(echo_pin, HIGH, 30000);  // 30ms: max time to wait for reply
+    int distanceCm = (pulse_micros < 2 || pulse_micros >= 30000) ? -1 : pulse_micros/58;
     return distanceCm;
   }
 };
 
 class ActuatorDriver {
-  int basePin;
-  int additionalDelay;
+  int base_pin;
+  int additional_delay;
   int counter;
-public:
-  ActuatorDriver(int basePin) :
-  basePin(basePin) , additionalDelay(NO_OBJ_DELAY), counter(0){
+ public:
+  ActuatorDriver(int base_pin) :
+    base_pin(base_pin), additional_delay(NO_OBJ_DELAY), counter(0) {}
+
+  void Extend(int extend) {
+    digitalWrite(base_pin, extend ? HIGH : LOW);
   }
-  void extend(){
-    digitalWrite(basePin, HIGH);
+  void Timestep() {    
+    if (additional_delay == NO_OBJ_DELAY) {
+      this.Extend(FALSE);
+      return;
+    }
+    counter++;
+    this.Extend(counter <= ACT_ON_TICKS);
+    if (counter > (ACT_ON_TICKS + REQ_DELAY_MS + additional_delay))
+        counter = 0;
   }
-  void retract(){
-    digitalWrite(basePin, LOW);
-  }
-  void timestep(){    
-    if (additionalDelay == NO_OBJ_DELAY){
-      retract();
-    }
-    else if (counter < ACT_ON_TICKS){
-      extend();
-      counter++;
-    }
-    else if (counter < (ACT_ON_TICKS + REQ_DELAY_MS + additionalDelay)){
-      retract();
-      counter++;
-    }
-    else{
-      extend();
-      counter = 0;
-    }
-  }
-  void setAdditionalDelay(int del){
-    additionalDelay = del;
+  void set_additional_delay(int del) {
+    additional_delay = del;
     counter = 0;
   }
 };
 
 class NoiseFilter {
   // Translate [-1,517] to [0,258] or NO_OBJ_DELAY(=259)
-  // distCm -> additionalDelayMs
-public:
-  int getFilteredValue(int dist){
+  // dist (cm) -> additionalDelay (ms)
+ public:
+  int Filter(int dist) {
     if (dist == -1)
       return NO_OBJ_DELAY;
     else
@@ -94,93 +86,74 @@ public:
         return dist/2;
       return NO_OBJ_DELAY;
   }
-
 };
 
 class ModuleController {
-  DistanceSensorDriver distanceSensor;
+  DistanceSensorDriver distance_sensor;
   ActuatorDriver actuator;
-  NoiseFilter noiseFilter;
+  NoiseFilter noise_filter;
 public:
-  ModuleController(): 
-  distanceSensor(0,0), actuator(0) {
-  }
+  ModuleController() :
+    distance_sensor(0,0), actuator(0) {}
   ModuleController(int outputPin, int inputPin) :
-  distanceSensor(outputPin, inputPin), actuator(outputPin) {
+    distance_sensor(outputPin, inputPin), actuator(outputPin) {}
+
+  void Timestep() {
+    actuator.Timestep();
   }
-  int getCurrentDistance(){
-    return distanceSensor.getCurrentDistance();
+  void Extend(extend) {
+    actuator.Extend(extend);
   }
-  void timestep(){
-    actuator.timestep();
-  }
-  void retract(){
-    actuator.retract();
-  }
-  void extend(){
-    actuator.extend();
-  }
-  int getFilteredValue(int dist){
-    return noiseFilter.getFilteredValue(dist);
-  }
-  void setAdditionalDelay(int del){
-    actuator.setAdditionalDelay(del);
+  void UpdateDistanceDelay() {
+    int dist_cm = distance_sensor.CurrentDistance();
+    int actuator_delay = noise_filter.Filter(dist_cm);
+    actuator.set_additional_delay(actuator_delay);
   }
 };
 
 class HeadbandController{
   ModuleController modules[N_MODULES];
   
-  void retractAll(){
-    for(int i=0;i<N_MODULES;i++){
-      modules[i].retract();
+  void ExtendAll(int extend) {
+    for (int i=0;i<N_MODULES;i++) {
+      modules[i].Extend(extend);
     }    
   }
-  void extendAll(){
-    for(int i=0;i<N_MODULES;i++){
-      modules[i].extend();
-    }    
-  }
-  void inputPhase(){
-    // Read all dists, store additionalDelays in actuator drivers
+  void InputPhase() {
     // This takes up to 250 ms
-    for(int i=0; i<N_MODULES; i++){
-      int distCm = modules[i].getCurrentDistance();
-      int filteredValue = modules[i].getFilteredValue(distCm);
-      modules[i].setAdditionalDelay(filteredValue);
+    for (int i=0; i<N_MODULES; i++) {
+      modules[i].UpdateDistanceDelay();
     }
   }
-
-  void outputPhase(){
+  void OutputPhase() {
     // Go through each module, call timestep
-    for(int steps=0; steps < OUTPUT_PHASE_STEPS; steps++){  // output phase = 1000 steps = 1 second
-      for(int i=0; i<N_MODULES; i++){
+    for (int steps=0; steps<OUTPUT_PHASE_STEPS; steps++) {  // output phase = 1000 steps = 1 second
+      for (int i=0; i<N_MODULES; i++) {
         // these are instant
-        modules[i].timestep(); // set each module H or L, update counters
+        modules[i].Timestep(); // set each module H or L, update counters
       }
       delayMicroseconds(STEP_LENGTH_US); // stay in this pos for 1ms
     }
   }
   
  public:
-  HeadbandController(){
-  }
-  HeadbandController(int outputPins[], int inputPins[]){
-    for(int i=0;i<N_MODULES;i++){
+  HeadbandController() {}
+  HeadbandController(int outputPins[], int inputPins[]) {
+    for (int i=0; i<N_MODULES; i++) {
       pinMode(inputPins[i], INPUT);
       pinMode(outputPins[i], OUTPUT);
       modules[i] = ModuleController(outputPins[i], inputPins[i]);
     }
   }
-  void processCycle(){
-    retractAll();
-    inputPhase();
-    outputPhase();
+  void ProcessCycle() {
+    ExtendAll(FALSE);
+    InputPhase();
+    OutputPhase();
   }
-  void cycleActuators(){
-    retractAll();
+  void CycleActuators() {
+    ExtendAll(FALSE);
     delay(1000);
-    extendAll();
+    ExtendAll(TRUE);
     delay(1000);
   }
 };
@@ -190,11 +163,10 @@ HeadbandController controller;
 void setup() {
   int outs[] = OUT_PINS;
   int ins[] = IN_PINS;
-  controller = HeadbandController(outs,ins);
+  controller = HeadbandController(outs, ins);
 }
 void loop() {
-  controller.processCycle();
-  //controller.cycleActuators();
+  controller.ProcessCycle();
+  //controller.CycleActuators();
 }
-
 
