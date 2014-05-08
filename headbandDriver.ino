@@ -150,6 +150,8 @@ class HeadbandController{
       modules[i].Timestep();
     }
     next_module++;
+    if (next_module >= N_MODULES)
+      next_module = 0;
   }
   void CycleActuators() {
     ExtendAll(FALSE);
