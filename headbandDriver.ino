@@ -60,11 +60,11 @@ class ActuatorDriver {
   }
   void Timestep() {    
     if (additional_delay >= NO_OBJ_DELAY) {
-      this.Extend(FALSE);
+      Extend(FALSE);
       return;
     }
     counter++;
-    this.Extend(counter <= ACT_ON_TICKS);
+    Extend(counter <= ACT_ON_TICKS);
     if (counter > (ACT_ON_TICKS + REQ_DELAY_MS + additional_delay))
         counter = 0;
   }
@@ -108,7 +108,7 @@ public:
   void Timestep() {
     actuator.Timestep();
   }
-  void Extend(extend) {
+  void Extend(int extend) {
     actuator.Extend(extend);
   }
   // Returns the distance
