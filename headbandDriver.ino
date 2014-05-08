@@ -18,6 +18,7 @@ CSE 453, Spring 2014
 #define OUT_PINS {0,1,2,3,4}
 #define IN_PINS {7,8,9,10,11}
 #define STEP_LENGTH_US 30000
+#define FILTER_THRESHOLD_CM 10
 
 #define TRUE 1
 #define FALSE 0
@@ -82,9 +83,9 @@ class NoiseFilter {
     if (dist == -1)
         return NO_OBJ_DELAY;
     int output_delay = dist/4;
-    if (dist > last_distance + FILTER_THRESHOLD)
+    if (dist > last_distance + FILTER_THRESHOLD_CM)
       output_delay *= 2;
-    if (dist < last_distance - FILTER_THRESHOLD)
+    if (dist < last_distance - FILTER_THRESHOLD_CM)
       output_delay /= 2;
     dist = last_distance;
     if (output_delay > NO_OBJ_DELAY)
