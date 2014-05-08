@@ -13,7 +13,7 @@ CSE 453, Spring 2014
 
 #define N_MODULES 5
 #define ACT_ON_TICKS 1
-#define NO_OBJ_DELAY 130
+#define NO_OBJ_DELAY 65
 #define REQ_DELAY_MS 1
 #define OUT_PINS {0,1,2,3,4}
 #define IN_PINS {7,8,9,10,11}
@@ -74,7 +74,7 @@ class ActuatorDriver {
 };
 
 class NoiseFilter {
-  // Translate [-1,517] to [0,129] or NO_OBJ_DELAY(=130)
+  // Translate [-1,517] to [0,64] or NO_OBJ_DELAY(=65)
   // dist (cm) -> additionalDelay (ms)
   int last_distance;
  public:
@@ -83,7 +83,7 @@ class NoiseFilter {
   int Filter(int dist) {
     if (dist == -1)
         return NO_OBJ_DELAY;
-    int output_delay = dist/4;
+    int output_delay = dist/8;
     if (dist > last_distance + FILTER_THRESHOLD_CM)
       output_delay *= 2;
     if (dist < last_distance - FILTER_THRESHOLD_CM)
