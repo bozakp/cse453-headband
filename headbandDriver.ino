@@ -82,9 +82,7 @@ class NoiseFilter {
     if (dist == -1)
       return NO_OBJ_DELAY;
     else
-      if (dist < 80)
-        return dist/2;
-      return NO_OBJ_DELAY;
+      return dist/2;
   }
 };
 
