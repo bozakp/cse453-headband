@@ -13,7 +13,7 @@ CSE 453, Spring 2014
 
 #define N_MODULES 5
 #define ACT_ON_TICKS 1
-#define NO_OBJ_DELAY 259
+#define NO_OBJ_DELAY 130
 #define REQ_DELAY_MS 1
 #define OUT_PINS {0,1,2,3,4}
 #define IN_PINS {7,8,9,10,11}
@@ -57,7 +57,7 @@ class ActuatorDriver {
     digitalWrite(base_pin, extend ? HIGH : LOW);
   }
   void Timestep() {    
-    if (additional_delay == NO_OBJ_DELAY) {
+    if (additional_delay >= NO_OBJ_DELAY) {
       this.Extend(FALSE);
       return;
     }
@@ -72,16 +72,24 @@ class ActuatorDriver {
 };
 
 class NoiseFilter {
-  // Translate [-1,517] to [0,129] or NO_OBJ_DELAY(=259)
+  // Translate [-1,517] to [0,129] or NO_OBJ_DELAY(=130)
   // dist (cm) -> additionalDelay (ms)
+  int last_distance;
  public:
+  NoiseFilter() : last_distance(0) {}
+
   int Filter(int dist) {
     if (dist == -1)
-      return NO_OBJ_DELAY;
-    else
-      if (dist < 80)
-        return dist/4;
-      return NO_OBJ_DELAY;
+        return NO_OBJ_DELAY;
+    int output_delay = dist/4;
+    if (dist > last_distance + FILTER_THRESHOLD)
+      output_delay *= 2;
+    if (dist < last_distance - FILTER_THRESHOLD)
+      output_delay /= 2;
+    dist = last_distance;
+    if (output_delay > NO_OBJ_DELAY)
+      output_delay = NO_OBJ_DELAY;  // cap the delay at the max value
+    return output_delay;
   }
 };
 
