@@ -19,6 +19,7 @@ CSE 453, Spring 2014
 #define IN_PINS {7,8,9,10,11}
 #define STEP_LENGTH_US 30000
 #define FILTER_THRESHOLD_CM 10
+#define START_STEP_DELAY_MS 30
 
 #define TRUE 1
 #define FALSE 0
@@ -140,6 +141,7 @@ class HeadbandController{
     next_module = 0;
   }
   void ProcessStep() {
+    delay(START_STEP_DELAY_MS);
     int dist = modules[next_module].UpdateDistanceDelay();
     // sleep for the rest of this time period
     delayMicroseconds(STEP_LENGTH_US - dist*58);
